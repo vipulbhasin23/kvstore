@@ -1,0 +1,15 @@
+# Compiled binaries
+kvstore
+bin/
+*.test
+*.out
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+
+# Env/config
+.env
