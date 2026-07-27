@@ -14,8 +14,8 @@ write-ahead log, and crash recovery.
 
 ## Running
 
-\'\'\'bash
+```bash
 git clone https://github.com/vipulbhasin23/kvstore.git
 cd kvstore
 go run main.go
-\'\'\'
+```
