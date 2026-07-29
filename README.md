@@ -6,7 +6,7 @@ write-ahead log, and crash recovery.
 ## Status
 
 - [x] Project scaffolding (go.mod, main.go)
-- [] Basic get/set/delete (in-memory)
+- [x] Basic get/set/delete (in-memory)
 - [] Write-Ahead Log (WAL) for durability
 - [] Crash recovery from WAL
 - [] Concurrency support
@@ -19,3 +19,7 @@ git clone https://github.com/vipulbhasin23/kvstore.git
 cd kvstore
 go run main.go
 ```
+
+## Design notes
+
+See [DECISIONS.md](./DECISIONS.md) for tradeoffs and reasoning as they come up.
