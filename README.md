@@ -10,7 +10,7 @@ write-ahead log, and crash recovery.
 - [x] Write-Ahead Log (WAL) for durability
 - [] Crash recovery from WAL
 - [] Concurrency support
-- [] Tests
+- [x] Tests (ongoing, added alongside each feature)
 
 ## Running
 
