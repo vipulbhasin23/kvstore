@@ -7,7 +7,7 @@ write-ahead log, and crash recovery.
 
 - [x] Project scaffolding (go.mod, main.go)
 - [x] Basic get/set/delete (in-memory)
-- [] Write-Ahead Log (WAL) for durability
+- [x] Write-Ahead Log (WAL) for durability
 - [] Crash recovery from WAL
 - [] Concurrency support
 - [] Tests
