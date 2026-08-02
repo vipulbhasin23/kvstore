@@ -4,6 +4,9 @@ bin/
 *.test
 *.out
 
+# Runtime data
+*.wal
+
 # macOS
 .DS_Store
 
