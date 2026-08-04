@@ -9,27 +9,40 @@ import (
 	"strings"
 )
 
+// WAL is an append-only, fsync'd write-ahead log used to persist SET and
+// DELETE operations before they're applied to the in-memory store.
 type WAL struct {
 	file *os.File
 }
 
+// Op identifies the kind of operation a WAL entry represents.
 type Op int
 
 const (
+	// OpSet represents a SET operation.
 	OpSet Op = iota
+	// OpDelete represents a DELETE operation.
 	OpDelete
 )
 
+// Entry represents a single parsed WAL operation.
+// Value is unused for OpDelete.
 type Entry struct {
 	Op    Op
 	Key   string
 	Value string
 }
+
+// ReplayResult is the outcome of a WAL replay: the entries successfully
+// parsed, and whether the final line was truncated and discarded.
 type ReplayResult struct {
 	Entries   []Entry
 	Truncated bool
 }
 
+// NewWAL opens (creating if necessary) the WAL file at path for both
+// appending and replay, using a single read/write handle for the WAL's
+// lifetime.
 func NewWAL(path string) (*WAL, error) {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
@@ -39,6 +52,11 @@ func NewWAL(path string) (*WAL, error) {
 	return &WAL{file: file}, nil
 }
 
+// Replay reads the WAL from the start and reconstructs the sequence of
+// entries it contains. If the file ends without a fully written final
+// line, that trailing line is discarded and ReplayResult.Truncated is
+// set to true; corruption elsewhere in the file is treated as a fatal
+// error.
 func (w *WAL) Replay() (ReplayResult, error) {
 	if _, err := w.file.Seek(0, io.SeekStart); err != nil {
 		return ReplayResult{}, err
@@ -73,6 +91,7 @@ func (w *WAL) Replay() (ReplayResult, error) {
 	return ReplayResult{Entries: entries, Truncated: truncated}, nil
 }
 
+// parseLine parses a single WAL line into an Entry.
 func parseLine(line string) (Entry, error) {
 	line = strings.TrimSuffix(line, "\n")
 	fields := strings.SplitN(line, " ", 2)
@@ -102,11 +121,15 @@ func parseLine(line string) (Entry, error) {
 	return entry, nil
 }
 
+// AppendSet writes a SET operation for key/value to the WAL and syncs it
+// to disk before returning.
 func (w *WAL) AppendSet(key, value string) error {
 	line := fmt.Sprintf("SET %s %s\n", key, value)
 	return w.writeAndSync(line)
 }
 
+// AppendDelete writes a DELETE operation for key to the WAL and syncs it
+// to disk before returning.
 func (w *WAL) AppendDelete(key string) error {
 	line := fmt.Sprintf("DELETE %s\n", key)
 	return w.writeAndSync(line)
@@ -119,6 +142,7 @@ func (w *WAL) writeAndSync(line string) error {
 	return w.file.Sync()
 }
 
+// Close closes the underlying WAL file.
 func (w *WAL) Close() error {
 	return w.file.Close()
 }

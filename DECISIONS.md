@@ -1,5 +1,30 @@
 # Decisions
 
+## WAL replay and crash recovery
+
+1. **Single `O_RDWR|O_APPEND` handle, opened once in `NewWAL`**, reused for
+   both replay and future appends — avoids a double-open (extra syscalls, a
+   race window between close/reopen), and relies on `O_APPEND`'s guarantee
+   that every write atomically targets true EOF regardless of where reading
+   left the offset.
+2. **Truncation detection via `bufio.Reader.ReadString('\n')`, not `bufio.Scanner`.**
+   `Scanner` normalizes away whether the final line was
+   newline-terminated — exactly the signal needed to detect a crash-truncated
+   trailing write, since a crash mid-write (writes fsync before the map updates)
+   can only ever corrupt the _last_ line.
+3. **A trailing chunk with no terminating newline is discarded unconditionally, without attempting to parse it first.**
+   Given the fsync-before-write guarantee (a crash can only ever leave the last
+   line incomplete), "doesn't end in `\n`" is sufficient grounds on its own —
+   no need to also check whether it happens to parse.
+4. **Truncation reported via `ReplayResult{Entries, Truncated bool}`, not a sentinel error.**
+   It's expected, designed-for behavior — the entire point of this feature — not
+   a failure. Keeps `error` meaning "something genuinely went wrong"
+   unconditionally, with no sentinel-checking required by callers.
+5. **Corruption beyond the trailing line is out of scope.** A non-final line
+   that fails to parse is a hard, fatal error — no attempt to recover from it.
+   Real detection would need a WAL format change (e.g. checksums); tracked
+   separately in #9.
+
 ## Write-ahead log (WAL) for durability
 
 1. **Log format**: Chose a plain-text, one-line-per-entry format over binary or
