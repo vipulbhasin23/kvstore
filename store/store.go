@@ -1,6 +1,9 @@
 package store
 
-import "errors"
+import (
+	"errors"
+	"log"
+)
 
 type Store struct {
 	data map[string]string
@@ -14,8 +17,28 @@ func NewStore(walPath string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	result, err := wal.Replay()
+	if err != nil {
+		_ = wal.Close() // best-effort cleanup: Replay's error is what the caller needs
+		return nil, err
+	}
+	if result.Truncated {
+		log.Printf("wal: discarded incomplete trailing entry during replay")
+	}
+	data := make(map[string]string)
+
+	for _, e := range result.Entries {
+		switch e.Op {
+		case OpSet:
+			data[e.Key] = e.Value
+		case OpDelete:
+			delete(data, e.Key)
+		}
+	}
+
 	return &Store{
-		data: make(map[string]string),
+		data: data,
 		wal:  wal,
 	}, nil
 }
