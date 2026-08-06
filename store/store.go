@@ -3,12 +3,14 @@ package store
 import (
 	"errors"
 	"log"
+	"sync"
 )
 
 // Store is an in-memory key-value store backed by a write-ahead log for
 // durability. All writes are persisted to the WAL before being applied
 // to the in-memory map.
 type Store struct {
+	mu   sync.RWMutex
 	data map[string]string
 	wal  *WAL
 }
@@ -53,6 +55,8 @@ func NewStore(walPath string) (*Store, error) {
 
 // Get returns the value for key, or ErrKeyNotFound if it doesn't exist.
 func (s *Store) Get(key string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	value, ok := s.data[key]
 
 	if !ok {
@@ -65,6 +69,8 @@ func (s *Store) Get(key string) (string, error) {
 // Set writes key/value to the WAL and, on success, updates the
 // in-memory map.
 func (s *Store) Set(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err := s.wal.AppendSet(key, value); err != nil {
 		return err
 	}
@@ -75,6 +81,8 @@ func (s *Store) Set(key, value string) error {
 // Delete removes key, first recording the deletion in the WAL and then,
 // on success, removing it from the in-memory map.
 func (s *Store) Delete(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err := s.wal.AppendDelete(key); err != nil {
 		return err
 	}

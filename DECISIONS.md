@@ -1,5 +1,28 @@
 # Decisions
 
+## Concurrency
+
+1. **Single `sync.RWMutex` on `Store`, held across the WHOLE `Set`/`Delete` operation - the WAL write and the map update together - not just the map update.**
+   `Get` takes `RLock`; `Set`/`Delete` take the full `Lock`. This keeps a single
+   invariant simple to reason about: WAL write order and map-update order can
+   never diverge, because no other goroutine can begin its own WAL write until
+   the current writer has released the lock after updating the map. The cost:
+   writes are fully serialized, including the fsync, so there's no write
+   concurrency at all. Accepted for now, since this project's goal is
+   correctness and clarity, not throughput; revisit with a real benchmark
+   before relaxing it (see future issue).
+2. **`Replay`, called from `NewStore` before the `Store` is returned, takes no lock.**
+   Nothing else can access `data` yet at that point, so no synchronization
+   is needed.
+3. **`TestStore_ConcurrentWritesReplayConsistent` provides only probabilistic coverage of the WAL/map ordering invariant, not a guarantee.**
+   Confirmed directly: temporarily splitting the lock (WAL write outside, map
+   update inside) still passed this test consistently under natural goroutine
+   scheduling, because the WAL write and the lock acquisition happen close
+   together in time with little between them. The bug only reproduced
+   reliably once an artificial delay was inserted between the two. This is a
+   known limitation, not an oversight - a reintroduction of this bug in the
+   future isn't guaranteed to be caught by this test alone.
+
 ## WAL replay and crash recovery
 
 1. **Single `O_RDWR|O_APPEND` handle, opened once in `NewWAL`**, reused for

@@ -9,7 +9,7 @@ write-ahead log, and crash recovery.
 - [x] Basic get/set/delete (in-memory)
 - [x] Write-Ahead Log (WAL) for durability
 - [x] Crash recovery from WAL
-- [ ] Concurrency support
+- [x] Concurrency support
 - [x] Tests
 
 ## Running
