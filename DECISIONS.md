@@ -21,7 +21,18 @@
    together in time with little between them. The bug only reproduced
    reliably once an artificial delay was inserted between the two. This is a
    known limitation, not an oversight - a reintroduction of this bug in the
-   future isn't guaranteed to be caught by this test alone.
+   future isn't guaranteed to be caught by this test alone (see item 4).
+4. **`afterWAL` test seam plus `TestStore_LockSpansWALAndMap` give a deterministic guarantee for the ordering invariant.**
+   `Set` calls an unexported, nil-in-production hook after the WAL append and
+   before the map update, while the lock is held. The test pauses writer A
+   there, starts writer B, and asserts B cannot complete until A is released,
+   then checks live state equals replayed state. Verified by mutation:
+   releasing the lock before the hook makes the test fail every time
+   (live="A", replayed="B"). `-race` reports nothing in that case, because
+   each step is individually locked; this is an ordering bug across the log
+   and the map, not a data race. This supersedes item 3 for this invariant;
+   the replay test stays as a general consistency check. Cost: one package-level
+   variable, so these tests must not run in parallel.
 
 ## WAL replay and crash recovery
 
