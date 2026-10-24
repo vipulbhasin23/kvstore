@@ -70,7 +70,11 @@ func TestStore_LockSpansWALAndMap(t *testing.T) {
 					t.Error(err)
 				}
 			}()
-			<-reached // first op has written to the WAL and is paused
+			select {
+			case <-reached: // first op has written to the WAL and is paused
+			case <-time.After(5 * time.Second):
+				t.Fatal("first op never reached afterWAL (failed before the WAL append?)")
+			}
 
 			bDone := make(chan struct{})
 			go func() {
