@@ -66,13 +66,18 @@ func (s *Store) Get(key string) (string, error) {
 	return value, nil
 }
 
-// Set writes key/value to the WAL and, on success, updates the
-// in-memory map.
+// afterWAL is a test seam: called after the WAL append, before the map update,
+// while s.mu is still held. Nil in production.
+var afterWAL func()
+
 func (s *Store) Set(key, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.wal.AppendSet(key, value); err != nil {
 		return err
+	}
+	if afterWAL != nil {
+		afterWAL()
 	}
 	s.data[key] = value
 	return nil
