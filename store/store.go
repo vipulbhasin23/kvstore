@@ -70,6 +70,8 @@ func (s *Store) Get(key string) (string, error) {
 // while s.mu is still held. Nil in production.
 var afterWAL func()
 
+// Set writes key/value to the WAL and, on success, updates the
+// in-memory map.
 func (s *Store) Set(key, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -90,6 +92,9 @@ func (s *Store) Delete(key string) error {
 	defer s.mu.Unlock()
 	if err := s.wal.AppendDelete(key); err != nil {
 		return err
+	}
+	if afterWAL != nil {
+		afterWAL()
 	}
 	delete(s.data, key)
 	return nil
